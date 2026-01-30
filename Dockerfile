@@ -5,7 +5,7 @@ RUN rm -f /etc/apache2/mods-enabled/mpm_*.load || true
 RUN rm -f /etc/apache2/mods-enabled/mpm_*.conf || true
 
 # ATIVA APENAS PREFORK
-RUN a2enmod mpm_prefork
+RUN a2dismod mpm_prefork
 
 # PHP + MySQL
 RUN docker-php-ext-install pdo pdo_mysql
