@@ -3,8 +3,9 @@
 class Database {
     public function getConnection() {
         try {
-            $host = "mysql.railway.internal";
-            $port = "3306";
+            
+            $host = "trolley.proxy.rlwy.net";
+            $port = "11848";
             $db   = "academia";
             $user = "root";
             $pass = "qfElMhnqAxJEKfyBRYXkYaWpHPsNQySL";
