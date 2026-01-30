@@ -1,16 +1,19 @@
 FROM php:8.2-apache
 
-# Remove QUALQUER outro MPM e força prefork
-RUN a2dismod mpm_event mpm_worker || true
+# REMOVE QUALQUER MPM EXISTENTE
+RUN rm -f /etc/apache2/mods-enabled/mpm_*.load || true
+RUN rm -f /etc/apache2/mods-enabled/mpm_*.conf || true
+
+# ATIVA APENAS PREFORK
 RUN a2enmod mpm_prefork
 
 # PHP + MySQL
 RUN docker-php-ext-install pdo pdo_mysql
 
-# Apache configs
+# Apache básico
 RUN a2enmod rewrite
 
-# Railway usa PORT dinâmica
+# Porta dinâmica do Railway
 RUN sed -i "s/80/${PORT}/g" /etc/apache2/ports.conf \
     /etc/apache2/sites-available/000-default.conf
 
