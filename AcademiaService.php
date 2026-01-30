@@ -11,6 +11,7 @@ class AcademiaService {
      * Realiza o login do administrador
      */
     public function loginAdmin($nome, $cpf, $senha) {
+        // Remove qualquer máscara do CPF para comparar apenas números
         $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
         $stmt = $this->db->prepare("SELECT * FROM admin WHERE nome = ? AND cpf = ? AND senha = ?");
         $stmt->execute([$nome, $cpfLimpo, $senha]);
@@ -26,33 +27,31 @@ class AcademiaService {
         $alunos = [];
 
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            // Cálculo de meses (Diferença entre data de início e hoje)
             $dataInicio = new DateTime($row['data_inicio']);
             $hoje = new DateTime();
             $intervalo = $dataInicio->diff($hoje);
             
-            // Total de meses completos transcorridos
+            // Meses transcorridos (Começa em 0 no dia da matrícula)
             $mesesTranscorridos = ($intervalo->y * 12) + $intervalo->m;
 
             $valorMensalidade = (float)$row['valor_mensalidade'];
-            $status = $row['status_pagamento']; // 'pago' ou 'pendente'
+            $status = $row['status_pagamento'];
             
-            // Lógica de Cobrança:
-            // Se estiver PAGO: O valor devido é apenas a mensalidade base do mês atual.
-            // Se estiver PENDENTE: Acumula (meses transcorridos + 1) * valor base.
             if ($status === 'pendente') {
+                // Se está pendente, cobramos o mês atual (0) + meses extras
                 $quantidadeMensalidades = $mesesTranscorridos + 1;
                 $subtotal = $valorMensalidade * $quantidadeMensalidades;
 
-                // Aplicação opcional de juros (1% a 50%)
+                // Aplicação de juros opcional (calculado sobre o subtotal acumulado)
                 if ($row['aplicar_juros'] == 1 && $row['juros_valor'] > 0) {
                     $taxaJuros = (float)$row['juros_valor'] / 100;
-                    $valorComJuros = $subtotal + ($subtotal * $taxaJuros);
+                    $valorFinal = $subtotal + ($subtotal * $taxaJuros);
                 } else {
-                    $valorComJuros = $subtotal;
+                    $valorFinal = $subtotal;
                 }
             } else {
-                $valorComJuros = $valorMensalidade;
+                // Se já pagou, o valor exibido é apenas o valor base da mensalidade
+                $valorFinal = $valorMensalidade;
             }
 
             $alunos[] = [
@@ -63,51 +62,75 @@ class AcademiaService {
                 "status" => $status,
                 "meses_total" => $mesesTranscorridos,
                 "mensalidade_base" => $valorMensalidade,
-                "valor_total_devido" => round($valorComJuros, 2),
+                "valor_total_devido" => round($valorFinal, 2),
                 "juros_ativo" => (bool)$row['aplicar_juros'],
-                "juros_valor" => $row['juros_valor']
+                "juros_valor" => (float)$row['juros_valor']
             ];
         }
         return $alunos;
     }
 
     /**
-     * Cadastra um novo aluno
+     * Busca um aluno específico pelo CPF
+     */
+    public function buscarAlunoPorCpf($cpf) {
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+        $stmt = $this->db->prepare("SELECT * FROM alunos WHERE cpf = ?");
+        $stmt->execute([$cpfLimpo]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Cadastra um novo aluno com limpeza de CPF
      */
     public function cadastrarAluno($nome, $cpf, $telefone, $valor, $status, $aplicarJuros, $valorJuros) {
+        // Limpa o CPF antes de inserir para evitar erros de busca depois
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+        
+        // Verifica se o CPF já existe
+        if($this->buscarAlunoPorCpf($cpfLimpo)) {
+            return false; 
+        }
+
         $query = "INSERT INTO alunos (nome, cpf, telefone, valor_mensalidade, status_pagamento, aplicar_juros, juros_valor, data_inicio) 
                   VALUES (:nome, :cpf, :tel, :valor, :status, :juros_ativo, :juros_val, CURDATE())";
         
         $stmt = $this->db->prepare($query);
         return $stmt->execute([
             ":nome" => $nome,
-            ":cpf" => $cpf,
+            ":cpf" => $cpfLimpo,
             ":tel" => $telefone,
             ":valor" => $valor,
             ":status" => $status,
-            ":juros_ativo" => $aplicarJuros,
+            ":juros_ativo" => $aplicarJuros ? 1 : 0,
             ":juros_val" => $valorJuros
         ]);
     }
 
     /**
-     * Atualiza o status de pagamento (Baixa na dívida)
-     * Quando o aluno paga, a data_inicio é resetada para hoje para reiniciar o ciclo de meses.
+     * Atualiza o status e REINICIA o ciclo de cobrança
      */
     public function atualizarStatus($cpf, $novoStatus) {
-        $query = "UPDATE alunos SET status_pagamento = :status, data_inicio = CURDATE() WHERE cpf = :cpf";
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+        
+        // Se o status for 'pago', atualizamos a data_inicio para hoje.
+        // Isso faz com que no próximo mês a dívida comece do zero novamente.
+        if ($novoStatus === 'pago') {
+            $query = "UPDATE alunos SET status_pagamento = 'pago', data_inicio = CURDATE() WHERE cpf = :cpf";
+        } else {
+            $query = "UPDATE alunos SET status_pagamento = 'pendente' WHERE cpf = :cpf";
+        }
+        
         $stmt = $this->db->prepare($query);
-        return $stmt->execute([
-            ":status" => $novoStatus,
-            ":cpf" => $cpf
-        ]);
+        return $stmt->execute([":cpf" => $cpfLimpo]);
     }
 
     /**
-     * Remove um aluno do sistema
+     * Remove um aluno
      */
     public function apagarAluno($cpf) {
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
         $stmt = $this->db->prepare("DELETE FROM alunos WHERE cpf = ?");
-        return $stmt->execute([$cpf]);
+        return $stmt->execute([$cpfLimpo]);
     }
 }
