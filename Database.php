@@ -21,10 +21,10 @@ class Database {
 
 **/
 class Database {
-    private $host = "127.0.0.1";
+    private $host = "trolley.proxy.rlwy.net";
     private $db_name = "academia"; 
     private $username = "root";
-    private $password = "17061967"; // Geralmente vazio no Termux
+    private $password = "qfElMhnqAxJEKfyBRYXkYaWpHPsNQySL"; // Geralmente vazio no Termux
 
     public $conn;
 
