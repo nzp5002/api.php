@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Admin - BioAthletic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+    body { font-family: 'Montserrat', sans-serif; background: #0A0A0A; color: #FFF; margin:0; padding:0; }
+    header { padding:20px; background:#161616; text-align:center; font-size:1.5rem; font-weight:900; color:#FF3B3B; }
+    .container { max-width:1200px; margin:40px auto; padding:0 20px; }
+    .login-box, .panel { background:#161616; padding:30px; border-radius:15px; box-shadow:0 10px 20px rgba(255,59,59,0.2); }
+    input, select, button { width:100%; padding:15px; margin-bottom:15px; border-radius:10px; border:none; font-size:1rem; }
+    button { background:#FF3B3B; color:white; font-weight:700; cursor:pointer; transition:0.3s; }
+    button:hover { filter:brightness(1.2); }
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th, td { padding:12px; text-align:left; border-bottom:1px solid #222; }
+    th { background:#1a1a1a; }
+    tr:hover { background:#222; }
+    .checkbox-cell { text-align:center; }
+    .filter-group { display:flex; gap:15px; flex-wrap:wrap; margin-bottom:15px; }
+    .filter-group input, .filter-group select { flex:1; }
+</style>
+</head>
+<body>
+
+<header>BioAthletic - Painel Administrativo</header>
+
+<div class="container">
+
+    <!-- Login Admin -->
+    <div class="login-box" id="loginBox">
+        <h2>Login do Administrador</h2>
+        <input type="text" id="adminNome" placeholder="Nome Completo">
+        <input type="text" id="adminCpf" placeholder="CPF">
+        <input type="password" id="adminSenha" placeholder="Senha">
+        <button id="btnLogin">Entrar</button>
+        <div id="loginStatus"></div>
+    </div>
+
+    <!-- Painel -->
+    <div class="panel" id="adminPanel" style="display:none;">
+        <h2>Gerenciar Alunos</h2>
+
+        <div class="filter-group">
+            <input type="number" id="filterValor" placeholder="Filtrar por Mensalidade (R$)">
+            <input type="number" id="filterMeses" placeholder="Filtrar por meses na academia">
+            <button id="btnFiltrar">Filtrar</button>
+            <button id="btnLimparFiltro">Limpar Filtro</button>
+        </div>
+
+        <button id="btnApagarSelecionados">Apagar Selecionados</button>
+
+        <table id="alunosTable">
+            <thead>
+                <tr>
+                    <th class="checkbox-cell"><input type="checkbox" id="selectAll"></th>
+                    <th>Nome</th>
+                    <th>CPF</th>
+                    <th>Telefone</th>
+                    <th>Mensalidade (R$)</th>
+                    <th>Meses na Academia</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+const API_URL = 'https://apiphp-production-bce2.up.railway.app';
+
+// --- LOGIN ---
+document.getElementById('btnLogin').addEventListener('click', async () => {
+    const nome = document.getElementById('adminNome').value.trim();
+    const cpf = document.getElementById('adminCpf').value.trim();
+    const senha = document.getElementById('adminSenha').value;
+
+    if(!nome || !cpf || !senha) return alert('Preencha todos os campos');
+
+    const fd = new FormData();
+    fd.append('nome', nome);
+    fd.append('cpf', cpf);
+    fd.append('senha', senha);
+
+    try {
+        const res = await fetch(`${API_URL}?action=login`, { method:'POST', body:fd });
+        const data = await res.json();
+        if(data.status==='success') {
+            document.getElementById('loginBox').style.display='none';
+            document.getElementById('adminPanel').style.display='block';
+            carregarAlunos();
+        } else {
+            document.getElementById('loginStatus').innerText='Login inválido';
+        }
+    } catch(err){
+        console.error(err);
+        alert('Erro ao conectar com a API');
+    }
+});
+
+// --- CARREGAR ALUNOS ---
+let alunosData = [];
+async function carregarAlunos(){
+    try{
+        const res = await fetch(`${API_URL}?action=listar_alunos`);
+        const data = await res.json();
+        alunosData = data.data || [];
+        renderTable(alunosData);
+    } catch(err){
+        console.error(err);
+        alert('Erro ao carregar alunos');
+    }
+}
+
+// --- RENDERIZAR TABELA ---
+function renderTable(data){
+    const tbody = document.querySelector('#alunosTable tbody');
+    tbody.innerHTML='';
+    data.forEach(aluno=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML=`
+            <td class="checkbox-cell"><input type="checkbox" class="selectAluno" data-cpf="${aluno.cpf}"></td>
+            <td>${aluno.nome}</td>
+            <td>${aluno.cpf}</td>
+            <td>${aluno.telefone}</td>
+            <td>${aluno.mensalidade.toFixed(2)}</td>
+            <td>${aluno.meses_na_academia}</td>
+            <td><button class="btnApagar" data-cpf="${aluno.cpf}">Apagar</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// --- APAGAR INDIVIDUAL ---
+document.addEventListener('click', async (e)=>{
+    if(e.target.classList.contains('btnApagar')){
+        if(!confirm('Deseja realmente apagar este aluno?')) return;
+        const cpf = e.target.dataset.cpf;
+        await apagarAlunos([cpf]);
+        carregarAlunos();
+    }
+});
+
+// --- SELECIONAR TODOS ---
+document.getElementById('selectAll').addEventListener('change', (e)=>{
+    document.querySelectorAll('.selectAluno').forEach(chk=>{
+        chk.checked = e.target.checked;
+    });
+});
+
+// --- APAGAR SELECIONADOS ---
+document.getElementById('btnApagarSelecionados').addEventListener('click', async ()=>{
+    const selecionados = Array.from(document.querySelectorAll('.selectAluno:checked')).map(chk=>chk.dataset.cpf);
+    if(selecionados.length===0) return alert('Nenhum aluno selecionado');
+    if(!confirm(`Deseja realmente apagar ${selecionados.length} aluno(s)?`)) return;
+    await apagarAlunos(selecionados);
+    carregarAlunos();
+});
+
+// --- FUNÇÃO APAGAR ---
+async function apagarAlunos(cpfs){
+    for(const cpf of cpfs){
+        const fd = new FormData();
+        fd.append('cpf', cpf);
+        try{
+            await fetch(`${API_URL}?action=apagar_aluno`, { method:'POST', body:fd });
+        } catch(err){ console.error(err); }
+    }
+}
+
+// --- FILTROS ---
+document.getElementById('btnFiltrar').addEventListener('click', ()=>{
+    const valor = parseFloat(document.getElementById('filterValor').value);
+    const meses = parseInt(document.getElementById('filterMeses').value);
+    let filtered = alunosData;
+
+    if(!isNaN(valor)) filtered = filtered.filter(a=>a.mensalidade===valor);
+    if(!isNaN(meses)) filtered = filtered.filter(a=>a.meses_na_academia===meses);
+
+    renderTable(filtered);
+});
+
+// --- LIMPAR FILTRO ---
+document.getElementById('btnLimparFiltro').addEventListener('click', ()=>{
+    document.getElementById('filterValor').value='';
+    document.getElementById('filterMeses').value='';
+    renderTable(alunosData);
+});
+</script>
+
+</body>
+</html>
