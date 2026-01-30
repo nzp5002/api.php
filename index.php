@@ -23,53 +23,62 @@ $service = new AcademiaService($db);
 $action = $_GET['action'] ?? '';
 
 switch($action) {
+
+    // --- LOGIN ADMIN ---
     case 'login':
         $nome = $_POST['nome'] ?? '';
-        $cpf = $_POST['cpf'] ?? '';
+        $cpf  = preg_replace('/\D/', '', $_POST['cpf'] ?? '');
+        $senha = $_POST['senha'] ?? '';
+
         $admin = $service->loginAdmin($nome, $cpf);
-        echo json_encode($admin ? ["status" => "success", "admin" => $admin] : ["status" => "error"]);
+
+        if ($admin && password_verify($senha, $admin['senha'])) {
+            echo json_encode(["status" => "success", "admin" => $admin]);
+        } else {
+            echo json_encode(["status" => "error", "message" => "Login inválido"]);
+        }
         break;
 
+    // --- LISTAR ALUNOS ---
     case 'listar_alunos':
         $alunos = $service->listarAlunos();
         echo json_encode(["status" => "success", "data" => $alunos]);
         break;
 
+    // --- CADASTRAR ALUNO ---
     case 'cadastrar_aluno':
         $nome = $_POST['nome'] ?? '';
-        $cpf = $_POST['cpf'] ?? '';
-        $telefone = $_POST['telefone'] ?? '';
+        $cpf = preg_replace('/\D/', '', $_POST['cpf'] ?? '');
+        $telefone = preg_replace('/\D/', '', $_POST['telefone'] ?? '');
         $valor = $_POST['valor'] ?? 0;
 
-        // Limpeza dos dados
-        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
-        $telLimpo = preg_replace('/[^0-9]/', '', $telefone);
-
-        // 1. Validação de CPF (Tamanho)
-        if (strlen($cpfLimpo) != 11) {
+        // Validação CPF
+        if (strlen($cpf) != 11) {
             echo json_encode(["status" => "error", "message" => "CPF Inválido"]);
             break;
         }
 
-        // 2. Verificação de Duplicidade (Impede cadastrar o mesmo CPF)
+        // Verifica duplicidade
         $stmt = $db->prepare("SELECT id FROM alunos WHERE cpf = ?");
-        $stmt->execute([$cpfLimpo]);
+        $stmt->execute([$cpf]);
         if ($stmt->rowCount() > 0) {
             echo json_encode(["status" => "error", "message" => "CPF já cadastrado"]);
             break;
         }
 
-        /**
-         * ATENÇÃO: Se o erro persiste, é porque o seu AcademiaService.php 
-         * ou sua Tabela não aceitam o campo 'telefone'.
-         * Vou enviar o cadastro apenas com os campos que o seu sistema antigo aceitava.
-         */
-        $res = $service->cadastrarAluno($nome, $cpfLimpo, $telLimpo, $valor);
-        
+        $res = $service->cadastrarAluno($nome, $cpf, $telefone, $valor);
         echo json_encode($res ? ["status" => "success"] : ["status" => "error"]);
         break;
 
-    $apagado = $service->apagarAluno($cpfLimpo);
+    // --- APAGAR ALUNO ---
+    case 'apagar_aluno':
+        $cpf = preg_replace('/\D/', '', $_POST['cpf'] ?? '');
+        if (!$cpf) {
+            echo json_encode(["status" => "error", "message" => "CPF não informado"]);
+            break;
+        }
+
+        $apagado = $service->apagarAluno($cpf);
         if ($apagado) {
             echo json_encode(["status" => "success", "message" => "Aluno apagado com sucesso"]);
         } else {
@@ -77,9 +86,8 @@ switch($action) {
         }
         break;
 
-    
+    // --- DEFAULT ---
     default:
-        echo json_encode(["message" => "Ação inválida"]);
- 
+        echo json_encode(["status" => "error", "message" => "Ação inválida"]);
+        break;
 }
-
