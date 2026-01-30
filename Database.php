@@ -1,10 +1,10 @@
 <?php
 /**
 class Database {
-    private $host = "127.0.0.1";
+    private $host = "trolley.proxy.rlwy.net";
     private $db_name = "academia";
     private $username = "root";
-    private $password = "root";
+    private $password = "qfElMhnqAxJEKfyBRYXkYaWpHPsNQySL";
     public $conn;
 
     public function getConnection() {
