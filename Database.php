@@ -6,7 +6,7 @@ class Database {
             
             $host = "trolley.proxy.rlwy.net";
             $port = "11848";
-            $db   = "academia";
+            $db   = "railway";
             $user = "root";
             $pass = "qfElMhnqAxJEKfyBRYXkYaWpHPsNQySL";
 
