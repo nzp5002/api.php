@@ -1,17 +1,8 @@
 <?php
-
-// --- CORS e preflight ---
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
-require_once 'Database.php';
-require_once 'AcademiaService.php'; //
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+header("Access-Control-Allow-Headers: Content-Type, ngrok-skip-browser-warning");
 
 require_once 'Database.php';
 require_once 'AcademiaService.php';
@@ -26,61 +17,58 @@ $action = $_GET['action'] ?? '';
 
 switch($action) {
 
-    // --- LOGIN ADMIN ---
     case 'login':
         $nome = $_POST['nome'] ?? '';
-        $cpf  = preg_replace('/\D/', '', $_POST['cpf'] ?? '');
-        $senha = $_POST['senha'] ?? '';
+        $cpf = $_POST['cpf'] ?? '';
+        $senha = $_POST['senha'] ?? ''; // adiciona senha
 
-        $admin = $service->loginAdmin($nome, $cpf);
-
-        if ($admin && password_verify($senha, $admin['senha'])) {
-            echo json_encode(["status" => "success", "admin" => $admin]);
-        } else {
-            echo json_encode(["status" => "error", "message" => "Login inválido"]);
+        if (!$nome || !$cpf || !$senha) {
+            echo json_encode(["status" => "error", "message" => "Preencha todos os campos"]);
+            break;
         }
+
+        $admin = $service->loginAdmin($nome, $cpf, $senha); // agora envia senha
+        echo json_encode($admin ? ["status" => "success", "admin" => $admin] : ["status" => "error", "message"=>"Login inválido"]);
         break;
 
-    // --- LISTAR ALUNOS ---
     case 'listar_alunos':
         $alunos = $service->listarAlunos();
         echo json_encode(["status" => "success", "data" => $alunos]);
         break;
 
-    // --- CADASTRAR ALUNO ---
     case 'cadastrar_aluno':
         $nome = $_POST['nome'] ?? '';
-        $cpf = preg_replace('/\D/', '', $_POST['cpf'] ?? '');
-        $telefone = preg_replace('/\D/', '', $_POST['telefone'] ?? '');
+        $cpf = $_POST['cpf'] ?? '';
+        $telefone = $_POST['telefone'] ?? '';
         $valor = $_POST['valor'] ?? 0;
 
-        // Validação CPF
-        if (strlen($cpf) != 11) {
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+        $telLimpo = preg_replace('/[^0-9]/', '', $telefone);
+
+        if (strlen($cpfLimpo) != 11) {
             echo json_encode(["status" => "error", "message" => "CPF Inválido"]);
             break;
         }
 
-        // Verifica duplicidade
         $stmt = $db->prepare("SELECT id FROM alunos WHERE cpf = ?");
-        $stmt->execute([$cpf]);
+        $stmt->execute([$cpfLimpo]);
         if ($stmt->rowCount() > 0) {
             echo json_encode(["status" => "error", "message" => "CPF já cadastrado"]);
             break;
         }
 
-        $res = $service->cadastrarAluno($nome, $cpf, $telefone, $valor);
+        $res = $service->cadastrarAluno($nome, $cpfLimpo, $telLimpo, $valor);
         echo json_encode($res ? ["status" => "success"] : ["status" => "error"]);
         break;
 
-    // --- APAGAR ALUNO ---
     case 'apagar_aluno':
-        $cpf = preg_replace('/\D/', '', $_POST['cpf'] ?? '');
+        $cpf = $_POST['cpf'] ?? '';
         if (!$cpf) {
-            echo json_encode(["status" => "error", "message" => "CPF não informado"]);
+            echo json_encode(["status"=>"error","message"=>"CPF não fornecido"]);
             break;
         }
-
-        $apagado = $service->apagarAluno($cpf);
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+        $apagado = $service->apagarAluno($cpfLimpo);
         if ($apagado) {
             echo json_encode(["status" => "success", "message" => "Aluno apagado com sucesso"]);
         } else {
@@ -88,8 +76,6 @@ switch($action) {
         }
         break;
 
-    // --- DEFAULT ---
     default:
         echo json_encode(["status" => "error", "message" => "Ação inválida"]);
-        break;
 }
