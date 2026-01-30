@@ -3,11 +3,11 @@
 class Database {
     public function getConnection() {
         try {
-            $host = getenv('MYSQLHOST');
-            $port = getenv('MYSQLPORT');
-            $db   = getenv('MYSQLDATABASE');
-            $user = getenv('MYSQLUSER');
-            $pass = getenv('MYSQLPASSWORD');
+            $host = "mysql.railway.internal";
+            $port = "3306";
+            $db   = "academia";
+            $user = "root";
+            $pass = "qfElMhnqAxJEKfyBRYXkYaWpHPsNQySL";
 
             if (!$host || !$user || !$db) {
                 throw new Exception('Variáveis MYSQL não encontradas');
