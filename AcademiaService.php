@@ -54,3 +54,13 @@ class AcademiaService {
     }
 }
 
+// --- NOVO: Apagar aluno pelo CPF ---
+    public function apagarAluno($cpf) {
+        $query = "DELETE FROM alunos WHERE cpf = :cpf";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(":cpf", $cpf);
+        $stmt->execute();
+        return $stmt->rowCount() > 0; // Retorna true se apagou algum registro
+    }
+}
+
