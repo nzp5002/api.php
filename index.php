@@ -69,7 +69,17 @@ switch($action) {
         echo json_encode($res ? ["status" => "success"] : ["status" => "error"]);
         break;
 
+    $apagado = $service->apagarAluno($cpfLimpo);
+        if ($apagado) {
+            echo json_encode(["status" => "success", "message" => "Aluno apagado com sucesso"]);
+        } else {
+            echo json_encode(["status" => "error", "message" => "Aluno não encontrado"]);
+        }
+        break;
+
+    
     default:
         echo json_encode(["message" => "Ação inválida"]);
+ 
 }
 
