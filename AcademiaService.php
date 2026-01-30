@@ -1,5 +1,3 @@
-<?php
-
 class AcademiaService {
     private $db;
 
@@ -7,6 +5,7 @@ class AcademiaService {
         $this->db = $db;
     }
 
+    // --- LOGIN ADMIN ---
     public function loginAdmin($nome, $cpf) {
         $query = "SELECT * FROM administradores WHERE nome = :nome AND cpf = :cpf LIMIT 1";
         $stmt = $this->db->prepare($query);
@@ -16,13 +15,21 @@ class AcademiaService {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    // --- LISTAR ALUNOS (ADMIN) ---
+    public function adminListarAlunos() {
+        return $this->listarAlunos(); // reutiliza método já existente
+    }
+
+    // --- APAGAR ALUNO (ADMIN) ---
+    public function adminApagarAluno($cpf) {
+        return $this->apagarAluno($cpf); // reutiliza método já existente
+    }
+
+    // --- RESTO DO CÓDIGO EXISTENTE ---
     public function cadastrarAluno($nome, $cpf, $telefone, $valor) {
-        $query = "INSERT INTO alunos (nome, cpf, telefone, valor_mensalidade, data_inicio) 
+        $query = "INSERT INTO alunos (nome, cpf, telefone, valor_mensalidade, data_inicio)
                   VALUES (:nome, :cpf, :telefone, :valor, CURDATE())";
-        
         $stmt = $this->db->prepare($query);
-        
-        // O erro costuma acontecer aqui na montagem deste array:
         return $stmt->execute([
             ":nome"     => $nome,
             ":cpf"      => $cpf,
@@ -35,7 +42,6 @@ class AcademiaService {
         $query = "SELECT * FROM alunos ORDER BY nome ASC";
         $stmt = $this->db->query($query);
         $alunos = [];
-        
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $dataInicio = new DateTime($row['data_inicio']);
             $hoje = new DateTime();
@@ -52,15 +58,10 @@ class AcademiaService {
         }
         return $alunos;
     }
-}
 
-// --- NOVO: Apagar aluno pelo CPF ---
     public function apagarAluno($cpf) {
-        $query = "DELETE FROM alunos WHERE cpf = :cpf";
-        $stmt = $this->db->prepare($query);
-        $stmt->bindParam(":cpf", $cpf);
-        $stmt->execute();
-        return $stmt->rowCount() > 0; // Retorna true se apagou algum registro
+        $stmt = $this->db->prepare("DELETE FROM alunos WHERE cpf = ?");
+        $stmt->execute([$cpf]);
+        return $stmt->rowCount() > 0;
     }
 }
-
