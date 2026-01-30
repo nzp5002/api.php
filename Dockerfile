@@ -1,11 +1,10 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
-# Ativa mysqli
-RUN docker-php-ext-install mysqli pdo pdo_mysql
+WORKDIR /app
+COPY . .
 
-# Ativa rewrite (opcional)
-RUN a2enmod rewrite
+RUN docker-php-ext-install pdo pdo_mysql
 
-EXPOSE 80
+EXPOSE 8080
 
-CMD ["apache2-foreground"]
+CMD ["php", "-S", "0.0.0.0:8080", "-t", "."]
