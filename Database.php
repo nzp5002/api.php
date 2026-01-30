@@ -16,8 +16,7 @@ class Database {
             $dsn = "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4";
 
             return new PDO($dsn, $user, $pass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false
+                
             ]);
 
         } catch (Throwable $e) {
